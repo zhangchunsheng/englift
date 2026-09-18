@@ -18,7 +18,8 @@ const supported = isRecognitionSupported()
 const listening = ref(false)
 const result = ref(null)
 const error = ref('')
-const showMicGuide = ref(false) // 麦克风开启指引
+const showMicGuide = ref(false) // 麦克风权限指引
+const noDeviceInfo = ref(null) // 找不到设备时的排查信息
 const insecure = typeof window !== 'undefined' && !window.isSecureContext
 let session = null
 
@@ -49,13 +50,22 @@ async function ensureMicPermission() {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     stream.getTracks().forEach((t) => t.stop()) // 只要权限，立即释放
     showMicGuide.value = false
+    noDeviceInfo.value = null
     return true
   } catch (e) {
     if (e.name === 'NotAllowedError' || e.name === 'SecurityError') {
       // 用户点了拒绝，或之前已拒绝 —— 展示手动指引
       showMicGuide.value = true
-    } else if (e.name === 'NotFoundError') {
-      error.value = '找不到麦克风设备，请检查麦克风连接'
+    } else if (e.name === 'NotFoundError' || e.name === 'OverconstrainedError') {
+      // 枚举不到任何麦克风：常见原因是操作系统级隐私开关（Windows/macOS）关闭
+      let count = -1
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices()
+        count = devices.filter((d) => d.kind === 'audioinput').length
+      } catch {
+        /* 忽略 */
+      }
+      noDeviceInfo.value = { count }
     } else {
       error.value = '无法访问麦克风：' + e.message
     }
@@ -118,6 +128,25 @@ async function start() {
       </ol>
       <p class="mt-1 text-ink/40">手机端：浏览器菜单 → 设置 → 网站设置 → 麦克风 → 允许本站。</p>
       <button class="btn-ghost mt-2 px-2.5 py-1 text-xs" @click="start">我已开启，重试</button>
+    </div>
+
+    <!-- 找不到麦克风设备的排查指引 -->
+    <div v-if="noDeviceInfo" class="mt-2 rounded-xl border border-clay/40 bg-clay/5 p-3 text-xs leading-6 text-ink/70">
+      <p class="font-bold text-ink">
+        🔇 浏览器找不到麦克风设备
+        <template v-if="noDeviceInfo.count === 0">（当前系统对浏览器暴露了 0 个音频输入设备）</template>
+      </p>
+      <p class="mt-1">这不一定是没插麦克风——<b>系统级隐私开关关闭时，浏览器会认为"没有麦克风"</b>，也不会弹授权框。请依次排查：</p>
+      <ol class="mt-1 list-inside list-decimal space-y-1">
+        <li>
+          <b>Windows</b>：设置 → 隐私和安全性 → 麦克风 → 打开「麦克风访问权限」<b>和</b>「允许桌面应用访问你的麦克风」
+        </li>
+        <li><b>macOS</b>：系统设置 → 隐私与安全性 → 麦克风 → 勾选你的浏览器</li>
+        <li>确认麦克风已插入 / 蓝牙耳机已连接，并在系统声音设置里能看到它</li>
+        <li>用系统自带「录音机」测试麦克风是否正常工作</li>
+        <li>以上都正常后，<b>完全关闭浏览器再重新打开</b>（设备列表可能缓存）</li>
+      </ol>
+      <button class="btn-ghost mt-2 px-2.5 py-1 text-xs" @click="start">我已处理，重试</button>
     </div>
 
     <!-- 评分结果 -->
