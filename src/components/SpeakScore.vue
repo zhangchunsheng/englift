@@ -20,8 +20,55 @@ const result = ref(null)
 const error = ref('')
 const showMicGuide = ref(false) // 麦克风权限指引
 const noDeviceInfo = ref(null) // 找不到设备时的排查信息
+const diag = ref(null) // 诊断结果
+const diagOpen = ref(false)
 const insecure = typeof window !== 'undefined' && !window.isSecureContext
 let session = null
+
+/** 麦克风环境诊断：把判断链路每一步的真实状态列出来 */
+async function runDiag() {
+  const d = {
+    secure: window.isSecureContext,
+    recognition: !!(window.SpeechRecognition || window.webkitSpeechRecognition),
+    mediaDevices: !!navigator.mediaDevices,
+    perm: '无法查询',
+    audioInputs: -1,
+    ua: navigator.userAgent,
+  }
+  try {
+    d.perm = (await navigator.permissions.query({ name: 'microphone' })).state
+  } catch {
+    /* 部分浏览器不支持 */
+  }
+  if (navigator.mediaDevices?.enumerateDevices) {
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices()
+      d.audioInputs = list.filter((x) => x.kind === 'audioinput').length
+    } catch {
+      /* 忽略 */
+    }
+  }
+  diag.value = d
+  diagOpen.value = true
+}
+
+const diagHints = computed(() => {
+  if (!diag.value) return []
+  const d = diag.value
+  const hints = []
+  if (!d.secure) hints.push('❌ 页面不是 HTTPS —— 浏览器禁用一切麦克风功能，请用 https:// 或 localhost 访问')
+  if (!d.recognition) hints.push('❌ 浏览器不支持语音识别 —— 请使用桌面版 Chrome / Edge')
+  if (!d.mediaDevices) hints.push('❌ mediaDevices 不可用 —— 通常是 HTTP 页面或浏览器过旧')
+  if (d.perm === 'denied') hints.push('❌ 麦克风权限曾被拒绝 —— 需在系统设置或 chrome://settings/content/microphone 中重新允许')
+  if (d.perm === 'prompt') hints.push('✅ 浏览器权限状态正常（prompt），只要系统有设备就会弹授权框')
+  if (d.perm === 'granted') hints.push('✅ 麦克风权限已允许')
+  if (d.audioInputs === 0)
+    hints.push('❌ 系统对浏览器暴露了 0 个麦克风 —— 问题在操作系统层：Windows 请检查「设置 → 隐私和安全性 → 麦克风」的两个开关；并确认系统录音机能录音')
+  if (d.audioInputs > 0) hints.push(`✅ 系统暴露了 ${d.audioInputs} 个音频输入设备`)
+  if (hints.length && hints.every((h) => h.startsWith('✅')))
+    hints.push('环境正常，直接点「🎤 跟读评分」即可')
+  return hints
+})
 
 const feedback = computed(() => (result.value ? scoreFeedback(result.value.score) : null))
 
@@ -114,6 +161,22 @@ async function start() {
         {{ listening ? '聆听中…点击结束' : '🎤 跟读评分' }}
       </button>
       <button class="btn-ghost px-2.5 py-1.5 text-xs" title="听示范发音" @click="speak(text)">🔊</button>
+      <button class="btn-ghost px-2.5 py-1.5 text-xs" title="麦克风诊断" @click="runDiag">🛠</button>
+    </div>
+
+    <!-- 诊断面板 -->
+    <div v-if="diagOpen && diag" class="mt-2 rounded-xl border border-ink/15 bg-white p-3 text-xs leading-6">
+      <div class="flex items-center justify-between">
+        <p class="font-bold">🛠 麦克风诊断</p>
+        <button class="text-ink/40 hover:text-ink" @click="diagOpen = false">✕</button>
+      </div>
+      <ul class="mt-1 space-y-0.5">
+        <li v-for="(h, i) in diagHints" :key="i" class="text-ink/70">{{ h }}</li>
+      </ul>
+      <details class="mt-1 text-ink/40">
+        <summary class="cursor-pointer">原始数据</summary>
+        <pre class="mt-1 overflow-x-auto rounded bg-paper p-2 text-[10px]">{{ JSON.stringify({ secure: diag.secure, recognition: diag.recognition, mediaDevices: diag.mediaDevices, permission: diag.perm, audioInputs: diag.audioInputs }, null, 2) }}</pre>
+      </details>
     </div>
 
     <p v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs text-clay">{{ error }}</p>
