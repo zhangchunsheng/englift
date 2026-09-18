@@ -1,8 +1,10 @@
 import { reactive, watch } from 'vue'
 
 const STORAGE_KEY = 'englift-progress-v1'
+const hasStorage = typeof localStorage !== 'undefined'
 
 function load() {
+  if (!hasStorage) return {}
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}
   } catch {
@@ -25,7 +27,7 @@ export const progress = reactive({
 
 watch(
   progress,
-  (val) => localStorage.setItem(STORAGE_KEY, JSON.stringify(val)),
+  (val) => hasStorage && localStorage.setItem(STORAGE_KEY, JSON.stringify(val)),
   { deep: true }
 )
 

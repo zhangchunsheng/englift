@@ -24,7 +24,25 @@ Vue 3 + Vite + Tailwind CSS 4 + Vue Router（localStorage 持久化学习进度�
 
 ```shell
 npm install
-npm run dev      # 开发服务器
-npm run build    # 生产构建（输出 dist/）
-npm run preview  # 预览构建产物
+npm run dev       # 开发服务器
+npm run build     # 生产构建 + 预渲染（输出 dist/，每个路由一份真实 HTML）
+npm run build:spa # 仅 SPA 构建（不预渲染）
+npm run preview   # 预览构建产物
+```
+
+## SEO / GEO
+
+- **预渲染（SSG）**：`scripts/prerender.mjs` 用 `@vue/server-renderer` 把 8 个路由渲染成静态 HTML，爬虫不执行 JS 也能读到完整内容；每页有独立的 title / description / canonical / OG
+- **结构化数据**：`index.html` 内嵌 JSON-LD（WebApplication + LearningResource）
+- **爬虫协议**：`public/robots.txt`（显式允许 GPTBot、ClaudeBot、PerplexityBot 等 AI 爬虫）、`public/sitemap.xml`、`public/llms.txt`（面向 AI 搜索引擎的站点说明）
+- 部署站点：https://englift.luomor.com/
+
+### Nginx 部署参考
+
+预渲染页是 `dist/<route>/index.html` 目录结构，Nginx 配置需优先命中目录索引，动态路由回退到 SPA：
+
+```nginx
+location / {
+  try_files $uri $uri/index.html /index.html;
+}
 ```

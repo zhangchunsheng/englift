@@ -5,12 +5,61 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="referrer" content="no-referrer" />
     <meta name="theme-color" content="#f5f7f0" />
-    <meta name="description" content="EngLift 英语实验室：通过时间线、词形变化、街区地图、音标图谱和句子拆解学习英语，包含双语例句和配套练习。" />
+
+    <!-- SEO 基础元信息（预渲染时会按路由替换 title/description/canonical） -->
     <title>EngLift · 英语学习实验室</title>
+    <meta name="description" content="EngLift 英语可视化学习实验室：用时间线学时态、地图学介词、图谱学音标、拆解学句子，配双语例句与配套练习。" />
+    <meta name="keywords" content="英语学习,英语语法,时态,不规则动词,介词,音标,句子成分,初中英语,英语练习" />
+    <meta name="author" content="EngLift" />
+    <link rel="canonical" href="https://englift.luomor.com/" />
+
+    <!-- Open Graph（社交/AI 摘要） -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="EngLift 英语实验室" />
+    <meta property="og:title" content="EngLift · 英语学习实验室" />
+    <meta property="og:description" content="用时间线学时态、地图学介词、图谱学音标、拆解学句子，配双语例句与配套练习。" />
+    <meta property="og:url" content="https://englift.luomor.com/" />
+    <meta property="og:image" content="https://englift.luomor.com/og-cover.png" />
+    <meta property="og:locale" content="zh_CN" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="EngLift · 英语学习实验室" />
+    <meta name="twitter:description" content="用时间线学时态、地图学介词、图谱学音标、拆解学句子。" />
+    <meta name="twitter:image" content="https://englift.luomor.com/og-cover.png" />
+
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+
+    <!-- 结构化数据 JSON-LD -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "EngLift 英语学习实验室",
+      "alternateName": "EngLift English Visual Lab",
+      "url": "https://englift.luomor.com/",
+      "description": "英语可视化学习工具：时态时间线、不规则动词词形变化、介词街区地图、国际音标图谱、句子拆解与配套练习。",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "Web",
+      "inLanguage": ["zh-CN", "en"],
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "CNY" },
+      "teaches": "英语语法",
+      "educationalLevel": "初中",
+      "hasPart": [
+        { "@type": "LearningResource", "name": "时态时间线", "url": "https://englift.luomor.com/tenses", "learningResourceType": "interactive demonstration" },
+        { "@type": "LearningResource", "name": "词形变化", "url": "https://englift.luomor.com/verbs", "learningResourceType": "reference table" },
+        { "@type": "LearningResource", "name": "介词街区地图", "url": "https://englift.luomor.com/prepositions", "learningResourceType": "interactive map" },
+        { "@type": "LearningResource", "name": "音标图谱", "url": "https://englift.luomor.com/phonemes", "learningResourceType": "audio chart" },
+        { "@type": "LearningResource", "name": "句子拆解", "url": "https://englift.luomor.com/sentences", "learningResourceType": "interactive diagram" },
+        { "@type": "LearningResource", "name": "配套练习", "url": "https://englift.luomor.com/quiz", "learningResourceType": "quiz" }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="app"></div>
-    <script type="module" src="/src/main.js"></script>
+    <noscript>请启用 JavaScript，以使用 EngLift 英语语法交互演示。本站内容涵盖：英语时态时间线、不规则动词词形变化、介词街区地图、国际音标图谱、句子成分拆解与配套练习。</noscript>
+    <script type="module" src="/src/entry-client.js"></script>
   </body>
 </html>

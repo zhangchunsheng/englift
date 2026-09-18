@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/prerender.mjs",
+    "build:spa": "vite build",
     "preview": "vite preview"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-vue": "^5.2.4",
+    "@vue/server-renderer": "^3.5.43",
     "tailwindcss": "^4.3.3",
     "vite": "^6.4.3"
   },
