@@ -11,49 +11,129 @@ export function isRecognitionSupported() {
 /**
  * 启动一次语音识别，返回 { promise, stop }
  * promise resolve 为识别文本；stop() 可提前结束并取回已有结果
+ *
+ * 内置 VAD（音量监测）：
+ * - 检测到说话后，静音 silenceMs 自动结束（无需手动点停）
+ * - 一直没人说话 noSpeechMs 自动结束并报 no-speech
+ * - 最长 maxMs 强制结束
+ * - onUpdate 回调实时文本（含临时结果）
  */
-export function recognizeOnce({ lang = 'en-US', timeout = 10000 } = {}) {
+export function recognizeOnce({
+  lang = 'en-US',
+  silenceMs = 1500,
+  noSpeechMs = 6000,
+  maxMs = 15000,
+  onUpdate,
+} = {}) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) return { promise: Promise.reject(new Error('unsupported')), stop() {} }
 
   const rec = new SR()
   rec.lang = lang
-  rec.interimResults = false
+  rec.interimResults = true
+  rec.continuous = true
   rec.maxAlternatives = 1
 
+  let finalText = ''
+  let interimText = ''
   let settled = false
-  const promise = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => {
-      if (!settled) {
-        settled = true
-        rec.abort()
-        reject(new Error('timeout'))
-      }
-    }, timeout)
+  let heardSpeech = false
+  let lastSpeechAt = 0
+  let audioCtx = null
+  let stream = null
+  let rafId = 0
+  const startedAt = Date.now()
 
-    rec.onresult = (e) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      resolve(e.results[0][0].transcript || '')
-    }
-    rec.onerror = (e) => {
-      if (settled) return
-      settled = true
-      clearTimeout(timer)
-      reject(new Error(e.error || 'unknown'))
-    }
-    rec.onend = () => {
-      if (!settled) {
-        settled = true
-        clearTimeout(timer)
-        reject(new Error('no-speech'))
-      }
-    }
+  const currentText = () => (finalText + ' ' + interimText).trim()
+  const emit = () => onUpdate?.(currentText())
+
+  let resolvePromise, rejectPromise
+  const promise = new Promise((res, rej) => {
+    resolvePromise = res
+    rejectPromise = rej
   })
 
+  function cleanup() {
+    cancelAnimationFrame(rafId)
+    try {
+      audioCtx?.close()
+    } catch {
+      /* 忽略 */
+    }
+    stream?.getTracks().forEach((t) => t.stop())
+    stream = null
+  }
+
+  function finish(err) {
+    if (settled) return
+    settled = true
+    cleanup()
+    try {
+      rec.onresult = rec.onerror = rec.onend = null
+      rec.stop()
+    } catch {
+      /* 忽略 */
+    }
+    const text = currentText()
+    if (text) resolvePromise(text)
+    else rejectPromise(err || new Error('no-speech'))
+  }
+
+  rec.onresult = (e) => {
+    interimText = ''
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' '
+      else interimText += e.results[i][0].transcript
+    }
+    heardSpeech = true
+    lastSpeechAt = Date.now()
+    emit()
+  }
+  rec.onerror = (e) => finish(new Error(e.error || 'unknown'))
+  rec.onend = () => {
+    if (!settled) finish(currentText() ? null : new Error('no-speech'))
+  }
+
+  // 音量监测：RMS 超过阈值视为说话，说完后静音自动结束
+  async function startVAD() {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      const src = audioCtx.createMediaStreamSource(stream)
+      const analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 512
+      src.connect(analyser)
+      const buf = new Uint8Array(analyser.frequencyBinCount)
+      const tick = () => {
+        if (settled) return
+        analyser.getByteTimeDomainData(buf)
+        let sum = 0
+        for (let i = 0; i < buf.length; i++) {
+          const v = (buf[i] - 128) / 128
+          sum += v * v
+        }
+        const rms = Math.sqrt(sum / buf.length)
+        const now = Date.now()
+        if (rms > 0.025) {
+          heardSpeech = true
+          lastSpeechAt = now
+        }
+        if (heardSpeech && now - lastSpeechAt > silenceMs) return finish(null)
+        if (!heardSpeech && now - startedAt > noSpeechMs) return finish(new Error('no-speech'))
+        if (now - startedAt > maxMs) return finish(null)
+        rafId = requestAnimationFrame(tick)
+      }
+      rafId = requestAnimationFrame(tick)
+    } catch {
+      // VAD 不可用时退化为固定时长
+      setTimeout(() => finish(null), maxMs)
+    }
+  }
+
   rec.start()
-  return { promise, stop: () => rec.stop() }
+  startVAD()
+
+  return { promise, stop: () => finish(null) }
 }
 
 // 分词：小写、去标点（保留撇号），按空格切

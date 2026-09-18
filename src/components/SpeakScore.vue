@@ -16,6 +16,7 @@ const props = defineProps({
 
 const supported = isRecognitionSupported()
 const listening = ref(false)
+const liveText = ref('') // 实时识别文本
 const result = ref(null)
 const error = ref('')
 const showMicGuide = ref(false) // 麦克风权限指引
@@ -127,10 +128,14 @@ async function start() {
   }
   error.value = ''
   result.value = null
+  liveText.value = ''
   if (!(await ensureMicPermission())) return
   listening.value = true
   try {
-    session = recognizeOnce({ lang: 'en-US' })
+    session = recognizeOnce({
+      lang: 'en-US',
+      onUpdate: (t) => (liveText.value = t),
+    })
     const transcript = await session.promise
     result.value = { ...scoreAttempt(props.text, transcript), transcript }
   } catch (e) {
@@ -158,11 +163,18 @@ async function start() {
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
           <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
         </span>
-        {{ listening ? '聆听中…点击结束' : '🎤 跟读评分' }}
+        {{ listening ? '聆听中…说完自动结束' : '🎤 跟读评分' }}
       </button>
       <button class="btn-ghost px-2.5 py-1.5 text-xs" title="听示范发音" @click="speak(text)">🔊</button>
       <button class="btn-ghost px-2.5 py-1.5 text-xs" title="麦克风诊断" @click="runDiag">🛠</button>
     </div>
+
+    <!-- 实时识别中 -->
+    <p v-if="listening" class="mt-2 rounded-lg bg-pine/5 px-3 py-2 text-xs leading-6 text-ink/60">
+      <span class="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-clay align-middle" />
+      正在识别<span lang="en" class="font-mono text-pine">{{ liveText || '…' }}</span>
+      <span class="text-ink/30">（停顿 1.5 秒自动结束，也可再点按钮提前结束）</span>
+    </p>
 
     <!-- 诊断面板 -->
     <div v-if="diagOpen && diag" class="mt-2 rounded-xl border border-ink/15 bg-white p-3 text-xs leading-6">
