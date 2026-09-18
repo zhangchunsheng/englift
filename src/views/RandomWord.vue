@@ -40,6 +40,21 @@ onMounted(() => {
   markVisit('words')
   draw()
 })
+
+// 发音播放状态（驱动喇叭动画）：'word' | 'example' | ''
+const speaking = ref('')
+
+function playDemo(text, key) {
+  if (speaking.value === key) {
+    window.speechSynthesis.cancel()
+    speaking.value = ''
+    return
+  }
+  const u = speak(text)
+  if (!u) return
+  u.onstart = () => (speaking.value = key)
+  u.onend = u.onerror = () => (speaking.value = '')
+}
 </script>
 
 <template>
@@ -82,13 +97,20 @@ onMounted(() => {
             <p class="font-medium leading-7" lang="en">{{ word.example }}</p>
             <p class="text-sm text-ink/50">{{ word.exampleZh }}</p>
           </div>
-          <button class="btn-ghost shrink-0" title="朗读例句" @click="speak(word.example)">🔊</button>
+          <button class="btn-ghost w-10 shrink-0 justify-center" title="朗读例句" @click="playDemo(word.example, 'example')">
+            <span v-if="speaking === 'example'" class="sound-bars" aria-label="正在播放"><i /><i /><i /></span>
+            <template v-else>🔊</template>
+          </button>
         </div>
       </div>
 
       <!-- 操作按钮 -->
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
-        <button class="btn-primary" @click="speak(word.word)">🔊 播放单词发音</button>
+        <button class="btn-primary" @click="playDemo(word.word, 'word')">
+          <span v-if="speaking === 'word'" class="sound-bars" aria-label="正在播放"><i /><i /><i /></span>
+          <template v-else>🔊</template>
+          {{ speaking === 'word' ? ' 停止' : ' 播放单词发音' }}
+        </button>
         <button class="btn bg-sun text-ink hover:bg-sun/90" @click="draw">🎲 随机抽一个</button>
       </div>
 
@@ -102,3 +124,35 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* 发音播放中：喇叭声波柱动画 */
+.sound-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 13px;
+}
+.sound-bars i {
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  animation: sound-bar 0.8s ease-in-out infinite;
+}
+.sound-bars i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.sound-bars i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes sound-bar {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 13px;
+  }
+}
+</style>

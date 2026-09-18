@@ -220,6 +220,21 @@ async function start() {
   }
 }
 
+// 示范发音播放状态（驱动喇叭动画）
+const speaking = ref(false)
+
+function playDemo() {
+  if (speaking.value) {
+    window.speechSynthesis.cancel()
+    speaking.value = false
+    return
+  }
+  const u = speak(props.text)
+  if (!u) return
+  u.onstart = () => (speaking.value = true)
+  u.onend = u.onerror = () => (speaking.value = false)
+}
+
 // 回放状态：播放中显示暂停图标，再点一次停止
 const playing = ref(false)
 let player = null
@@ -318,7 +333,17 @@ async function toggleRecordOnly() {
         </span>
         {{ listening ? '聆听中…说完自动结束' : '🎤 跟读评分' }}
       </button>
-      <button class="btn-ghost px-2.5 py-1.5 text-xs" title="听示范发音" @click="speak(text)">🔊</button>
+      <button
+        class="btn-ghost w-10 px-2.5 py-1.5 text-xs"
+        :class="{ 'border-pine text-pine': speaking }"
+        :title="speaking ? '停止示范发音' : '听示范发音'"
+        @click="playDemo"
+      >
+        <span v-if="speaking" class="sound-bars" aria-label="正在播放">
+          <i /><i /><i />
+        </span>
+        <template v-else>🔊</template>
+      </button>
       <button class="btn-ghost px-2.5 py-1.5 text-xs" title="麦克风诊断" @click="runDiag">🛠</button>
     </div>
 
@@ -457,3 +482,35 @@ async function toggleRecordOnly() {
     🎤 当前浏览器不支持发音评分，推荐 Chrome / Edge
   </p>
 </template>
+
+<style scoped>
+/* 示范发音播放中：喇叭声波柱动画 */
+.sound-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  height: 13px;
+}
+.sound-bars i {
+  width: 3px;
+  border-radius: 1px;
+  background: currentColor;
+  animation: sound-bar 0.8s ease-in-out infinite;
+}
+.sound-bars i:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.sound-bars i:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes sound-bar {
+  0%,
+  100% {
+    height: 4px;
+  }
+  50% {
+    height: 13px;
+  }
+}
+</style>
