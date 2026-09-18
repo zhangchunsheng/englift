@@ -27,7 +27,7 @@ const routes = [
   },
   {
     path: '/words', name: 'words', component: () => import('../views/RandomWord.vue'),
-    meta: { title: '随机单词', description: '从六个级别词库（小学/初中/高中/四级/六级/考研）随机抽单词：音标、释义、双语例句、发音播放、录音回放与跟读评分。' },
+    meta: { title: '随机单词', description: '全量词库随机抽词：小学/初中/高中/四级/六级/考研共 16129 词，含音标、释义、双语例句、发音播放、录音回放与跟读评分。' },
   },
   {
     path: '/quiz/:topic?', name: 'quiz', component: () => import('../views/QuizView.vue'),
