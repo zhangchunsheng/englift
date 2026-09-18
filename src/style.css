@@ -21,11 +21,11 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.font-display {
+@utility font-display {
   font-family: var(--font-display);
 }
 
-.card {
+@utility card {
   @apply rounded-2xl border border-ink/10 bg-white shadow-[0_2px_12px_rgba(34,48,31,0.06)];
 }
 
@@ -33,14 +33,14 @@ body {
   @apply inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium transition active:scale-[0.97] cursor-pointer select-none;
 }
 
-.btn-primary {
+@utility btn-primary {
   @apply btn bg-pine text-paper hover:bg-moss;
 }
 
-.btn-ghost {
+@utility btn-ghost {
   @apply btn border border-ink/15 bg-white hover:border-pine hover:text-pine;
 }
 
-.tag {
+@utility tag {
   @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-medium;
 }

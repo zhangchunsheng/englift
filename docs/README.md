@@ -49,4 +49,5 @@
 Access to fetch at 'https://api.dictionaryapi.dev/api/v2/entries/en/hello' from origin 'https://englift.luomor.com'
   has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested
   resource.使用php转发请求
+pc端右上角的button没有用
 ```
