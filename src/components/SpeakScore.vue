@@ -20,6 +20,7 @@ const listening = ref(false)
 const liveText = ref('') // 实时识别文本
 const audioUrl = ref(null) // 用户录音（Blob URL）
 const result = ref(null)
+const eventLog = ref([]) // 识别事件日志（调试用）
 const error = ref('')
 const errorDetail = ref('') // 错误补充诊断（基于录音响度分析）
 const showMicGuide = ref(false) // 麦克风权限指引
@@ -75,6 +76,21 @@ const diagHints = computed(() => {
 })
 
 const feedback = computed(() => (result.value ? scoreFeedback(result.value.score) : null))
+
+// 根据事件流定位识别链路断在哪一环
+const logDiagnosis = computed(() => {
+  if (!eventLog.value.length) return ''
+  const names = eventLog.value.map((l) => l.match(/\[(.+?)\]/)?.[1])
+  if (names.includes('error')) return '' // 已有明确错误码
+  if (!names.includes('start')) return '→ 识别会话未能启动'
+  if (!names.includes('audiostart'))
+    return '→ 识别开始了但音频采集没启动：麦克风可能被其他应用独占（会议软件/录屏），关闭后重试'
+  if (!names.includes('soundstart'))
+    return '→ 音频采集已启动但识别服务没检测到声音：识别用的设备可能与录音设备不同（🔒 网站设置里换麦克风），或服务不可达'
+  if (!names.includes('result'))
+    return '→ 检测到了声音但没有返回文字：云端识别服务不可达（Chrome 走 Google、Edge 走微软），请检查网络/代理'
+  return ''
+})
 
 /**
  * 先申请麦克风权限：
@@ -134,12 +150,16 @@ async function start() {
   result.value = null
   liveText.value = ''
   audioUrl.value = null
+  eventLog.value = []
   if (!(await ensureMicPermission())) return
   listening.value = true
+  const t0 = Date.now()
   try {
     session = recognizeOnce({
       lang: 'en-US',
       onUpdate: (t) => (liveText.value = t),
+      onEvent: (name, detail) =>
+        eventLog.value.push(`+${((Date.now() - t0) / 1000).toFixed(1)}s [${name}] ${detail}`),
     })
     const { text, audioUrl: url } = await session.promise
     audioUrl.value = url
@@ -220,6 +240,13 @@ function playRecording() {
         ▶ 回放我的录音
       </button>
     </div>
+
+    <!-- 识别接口事件日志：定位识别链路断在哪一环 -->
+    <details v-if="eventLog.length" class="mt-2 rounded-lg bg-paper px-3 py-2 text-xs" :open="!!error">
+      <summary class="cursor-pointer text-ink/50">识别接口返回内容（{{ eventLog.length }} 个事件）</summary>
+      <p v-if="logDiagnosis" class="mt-1 text-clay">{{ logDiagnosis }}</p>
+      <pre class="mt-1 whitespace-pre-wrap break-all font-mono text-[10px] leading-5 text-ink/60">{{ eventLog.join('\n') }}</pre>
+    </details>
 
     <!-- 麦克风开启指引 -->
     <div v-if="showMicGuide" class="mt-2 rounded-xl border border-sun/40 bg-sun/10 p-3 text-xs leading-6 text-ink/70">

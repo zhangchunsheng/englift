@@ -24,9 +24,12 @@ export function recognizeOnce({
   silenceMs = 2000,
   maxMs = 15000,
   onUpdate,
+  onEvent,
 } = {}) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition
   if (!SR) return { promise: Promise.reject(new Error('unsupported')), stop() {} }
+
+  const log = (name, detail = '') => onEvent?.(name, detail)
 
   const rec = new SR()
   rec.lang = lang
@@ -66,6 +69,7 @@ export function recognizeOnce({
     if (settled) return
     settled = true
     clearInterval(timer)
+    log('finish', err ? err.message : '正常结束')
     try {
       rec.onresult = rec.onerror = rec.onend = null
       rec.stop()
@@ -97,6 +101,12 @@ export function recognizeOnce({
     }
   }
 
+  rec.onstart = () => log('start', '识别已开始')
+  rec.onaudiostart = () => log('audiostart', '已开始采集音频')
+  rec.onsoundstart = () => log('soundstart', '检测到声音')
+  rec.onspeechstart = () => log('speechstart', '检测到语音')
+  rec.onspeechend = () => log('speechend', '语音结束')
+  rec.onaudioend = () => log('audioend', '音频采集结束')
   rec.onresult = (e) => {
     interimText = ''
     for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -105,10 +115,15 @@ export function recognizeOnce({
     }
     gotResult = true
     lastResultAt = Date.now()
+    log('result', currentText())
     emit()
   }
-  rec.onerror = (e) => finish(new Error(e.error || 'unknown'))
+  rec.onerror = (e) => {
+    log('error', e.error || 'unknown')
+    finish(new Error(e.error || 'unknown'))
+  }
   rec.onend = () => {
+    log('end', currentText() ? `有结果：${currentText()}` : '无结果')
     if (!settled) finish(currentText() ? null : new Error('no-speech'))
   }
 
