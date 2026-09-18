@@ -139,13 +139,34 @@ export function recognizeOnce({
 
       audioCtx = new (window.AudioContext || window.webkitAudioContext)()
       // 浏览器自动播放策略：AudioContext 可能处于 suspended，必须显式 resume
-      if (audioCtx.state === 'suspended') {
-        try {
-          await audioCtx.resume()
-        } catch {
-          /* 忽略 */
-        }
+      try {
+        if (audioCtx.state === 'suspended') await audioCtx.resume()
+      } catch {
+        /* 忽略 */
       }
+      // resume 不成功则 VAD 不可用：退化为「仅识别事件驱动」模式，
+      // 不再用音量判定"没说话"，避免误报 no-speech
+      const vadOk = audioCtx.state === 'running'
+
+      if (!vadOk) {
+        // 识别长时间（12s）无任何结果才结束
+        const timer = setInterval(() => {
+          if (settled) return clearInterval(timer)
+          const now = Date.now()
+          if (heardSpeech && now - lastSpeechAt > silenceMs * 2) {
+            clearInterval(timer)
+            finish(null)
+          } else if (!heardSpeech && now - startedAt > noSpeechMs * 2) {
+            clearInterval(timer)
+            finish(new Error('no-speech'))
+          } else if (now - startedAt > maxMs) {
+            clearInterval(timer)
+            finish(null)
+          }
+        }, 200)
+        return
+      }
+
       const src = audioCtx.createMediaStreamSource(stream)
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = 512
@@ -275,6 +296,29 @@ export function scoreFeedback(score) {
   if (score >= 70) return { label: '不错，注意标红的词', emoji: '💪', color: '#3d6ec6' }
   if (score >= 40) return { label: '继续加油，先听一遍再跟读', emoji: '📖', color: '#e8a33d' }
   return { label: '别灰心，点 🔊 多听几遍再试', emoji: '🌱', color: '#c65f3d' }
+}
+
+/**
+ * 分析一段录音的响度（0~1），用于诊断：
+ * 录音有声但识别为空 → 识别服务在监听另一个麦克风/网络问题
+ */
+export async function analyzeRecording(blobUrl) {
+  try {
+    const blob = await (await fetch(blobUrl)).blob()
+    const ctx = new OfflineAudioContext(1, 1, 44100)
+    const buf = await ctx.decodeAudioData(await blob.arrayBuffer())
+    const data = buf.getChannelData(0)
+    let peak = 0
+    // 抽样即可，不必逐样本
+    const step = Math.max(1, Math.floor(data.length / 20000))
+    for (let i = 0; i < data.length; i += step) {
+      const v = Math.abs(data[i])
+      if (v > peak) peak = v
+    }
+    return peak
+  } catch {
+    return -1
+  }
 }
 
 export function mapSpeechError(code) {

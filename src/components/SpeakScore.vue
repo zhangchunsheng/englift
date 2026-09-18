@@ -6,6 +6,7 @@ import {
   scoreAttempt,
   scoreFeedback,
   mapSpeechError,
+  analyzeRecording,
 } from '../utils/speechScore'
 import { speak } from '../utils/speech'
 
@@ -20,6 +21,7 @@ const liveText = ref('') // 实时识别文本
 const audioUrl = ref(null) // 用户录音（Blob URL）
 const result = ref(null)
 const error = ref('')
+const errorDetail = ref('') // 错误补充诊断（基于录音响度分析）
 const showMicGuide = ref(false) // 麦克风权限指引
 const noDeviceInfo = ref(null) // 找不到设备时的排查信息
 const diag = ref(null) // 诊断结果
@@ -128,6 +130,7 @@ async function start() {
     return
   }
   error.value = ''
+  errorDetail.value = ''
   result.value = null
   liveText.value = ''
   audioUrl.value = null
@@ -147,6 +150,17 @@ async function start() {
       showMicGuide.value = true
     } else {
       error.value = mapSpeechError(e.message)
+      // 识别为空时分析录音响度，区分「真没声音」和「识别通道没收到」
+      if (e.message === 'no-speech' && e.audioUrl) {
+        const peak = await analyzeRecording(e.audioUrl)
+        if (peak > 0.02) {
+          errorDetail.value =
+            '诊断：你的录音里有正常的声音 ✅，但识别服务没有返回结果 ❌。两个可能：① Chrome 的语音识别走的是 Google 服务器，国内网络通常无法访问 —— 推荐改用 Edge 浏览器（识别走微软服务器，国内可用），或开全局代理后重试；② Chrome 识别用的默认麦克风和录音设备不同 —— 地址栏 🔒 → 网站设置 → 麦克风，换选其他设备。'
+        } else if (peak >= 0) {
+          errorDetail.value =
+            '诊断：录音里几乎没有声音，请检查：① 麦克风是否被静音或音量太小（系统声音设置 → 输入设备）；② 是否选错了输入设备。'
+        }
+      }
     }
   } finally {
     listening.value = false
@@ -199,14 +213,12 @@ function playRecording() {
       </details>
     </div>
 
-    <div v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs text-clay">
+    <div v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs leading-6 text-clay">
       <p>{{ error }}</p>
+      <p v-if="errorDetail" class="mt-1 text-ink/70">{{ errorDetail }}</p>
       <button v-if="audioUrl" class="btn-ghost mt-1.5 px-2.5 py-1 text-xs" @click="playRecording">
         ▶ 回放我的录音
       </button>
-      <p v-if="audioUrl" class="mt-1 text-ink/40">
-        若录音里能听到自己的声音但识别为空：Chrome 识别用的默认麦克风可能选错设备 → 地址栏 🔒 → 网站设置 → 麦克风，换另一个设备试试。
-      </p>
     </div>
 
     <!-- 麦克风开启指引 -->
