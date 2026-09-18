@@ -29,7 +29,6 @@ function draw() {
   }
   word.value = next
   drawnCount.value++
-  stopPlaybackCleanup()
 }
 
 function switchLevel(lv) {
@@ -41,58 +40,6 @@ onMounted(() => {
   markVisit('words')
   draw()
 })
-
-// ===== 录音 / 回放（独立于语音识别，纯 MediaRecorder） =====
-const recording = ref(false)
-const audioUrl = ref('')
-const recordError = ref('')
-let recorder = null
-let stream = null
-let chunks = []
-
-function stopPlaybackCleanup() {
-  if (recorder && recorder.state !== 'inactive') recorder.stop()
-  recording.value = false
-  audioUrl.value = ''
-  recordError.value = ''
-}
-
-async function toggleRecord() {
-  if (recording.value) {
-    recorder?.stop() // onstop 里收尾
-    return
-  }
-  recordError.value = ''
-  audioUrl.value = ''
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    chunks = []
-    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) =>
-      window.MediaRecorder?.isTypeSupported?.(t)
-    )
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-    recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data)
-    recorder.onstop = () => {
-      audioUrl.value = URL.createObjectURL(
-        new Blob(chunks, { type: recorder.mimeType || 'audio/webm' })
-      )
-      stream?.getTracks().forEach((t) => t.stop())
-      stream = null
-      recording.value = false
-    }
-    recorder.start()
-    recording.value = true
-  } catch (e) {
-    recordError.value =
-      e.name === 'NotAllowedError'
-        ? '麦克风权限被拒绝：点击地址栏 🔒 → 网站设置 → 麦克风 → 允许'
-        : '无法录音：' + (e.message || e.name)
-  }
-}
-
-function playRecording() {
-  if (audioUrl.value) new Audio(audioUrl.value).play()
-}
 </script>
 
 <template>
@@ -142,27 +89,12 @@ function playRecording() {
       <!-- 操作按钮 -->
       <div class="mt-6 flex flex-wrap items-center justify-center gap-3">
         <button class="btn-primary" @click="speak(word.word)">🔊 播放单词发音</button>
-        <button
-          class="btn"
-          :class="recording ? 'bg-clay text-paper' : 'border border-ink/15 bg-white text-ink/70 hover:border-clay hover:text-clay'"
-          @click="toggleRecord"
-        >
-          <span v-if="recording" class="relative flex h-2.5 w-2.5">
-            <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-            <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
-          </span>
-          {{ recording ? '⏹ 停止录音' : '🎤 录音' }}
-        </button>
-        <button v-if="audioUrl" class="btn-ghost" @click="playRecording">▶ 回放我的录音</button>
         <button class="btn bg-sun text-ink hover:bg-sun/90" @click="draw">🎲 随机抽一个</button>
       </div>
 
-      <p v-if="recording" class="mt-3 text-xs text-clay">录音中…读完单词后点「停止录音」</p>
-      <p v-if="recordError" class="mt-3 rounded-lg bg-clay/10 px-3 py-2 text-xs text-clay">{{ recordError }}</p>
-
-      <!-- 跟读评分（可选） -->
+      <!-- 录音 / 回放 / 跟读评分 -->
       <div class="mt-5 border-t border-ink/10 pt-4">
-        <p class="mb-2 text-xs text-ink/40">想知道自己读得准不准？</p>
+        <p class="mb-2 text-xs text-ink/40">录下自己的朗读，回放对比，或让系统评分：</p>
         <div class="flex justify-center">
           <SpeakScore :key="word.word" :text="word.word" />
         </div>

@@ -223,14 +223,71 @@ async function start() {
 function playRecording() {
   if (audioUrl.value) new Audio(audioUrl.value).play()
 }
+
+// ===== 独立录音（不评分）：随录随听 =====
+const recordOnly = ref(false)
+let rec2 = null
+let stream2 = null
+let chunks2 = []
+
+async function toggleRecordOnly() {
+  if (recordOnly.value) {
+    rec2?.stop() // onstop 里收尾
+    return
+  }
+  if (listening.value) return
+  error.value = ''
+  try {
+    stream2 = await navigator.mediaDevices.getUserMedia({ audio: true })
+    chunks2 = []
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) =>
+      window.MediaRecorder?.isTypeSupported?.(t)
+    )
+    rec2 = new MediaRecorder(stream2, mimeType ? { mimeType } : undefined)
+    rec2.ondataavailable = (e) => e.data.size && chunks2.push(e.data)
+    rec2.onstop = () => {
+      audioUrl.value = URL.createObjectURL(
+        new Blob(chunks2, { type: rec2.mimeType || 'audio/webm' })
+      )
+      stream2?.getTracks().forEach((t) => t.stop())
+      stream2 = null
+      recordOnly.value = false
+    }
+    rec2.start()
+    recordOnly.value = true
+  } catch (e) {
+    if (e.name === 'NotAllowedError' || e.name === 'SecurityError') showMicGuide.value = true
+    else error.value = '无法录音：' + (e.message || e.name)
+  }
+}
 </script>
 
 <template>
   <div v-if="supported" class="speak-score" :class="{ compact }">
-    <div class="flex items-center gap-2">
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- 独立录音 + 回放（在跟读评分前面） -->
+      <button
+        class="btn text-xs"
+        :class="recordOnly ? 'bg-clay text-paper' : 'border border-ink/15 bg-white text-ink/70 hover:border-clay hover:text-clay'"
+        :disabled="listening"
+        @click="toggleRecordOnly"
+      >
+        <span v-if="recordOnly" class="relative flex h-2.5 w-2.5">
+          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
+          <span class="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+        </span>
+        {{ recordOnly ? '⏹ 停止' : '⏺ 录音' }}
+      </button>
+      <button
+        v-if="audioUrl"
+        class="btn-ghost px-2.5 py-1.5 text-xs"
+        title="回放我的录音"
+        @click="playRecording"
+      >▶ 回放</button>
       <button
         class="btn text-xs"
         :class="listening ? 'bg-clay text-paper' : 'bg-pine/10 text-pine hover:bg-pine/20'"
+        :disabled="recordOnly"
         @click="start"
       >
         <span v-if="listening" class="relative flex h-2.5 w-2.5">
@@ -268,20 +325,29 @@ function playRecording() {
     <div v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs leading-6 text-clay">
       <p>{{ error }}</p>
       <p v-if="errorDetail" class="mt-1 text-ink/70">{{ errorDetail }}</p>
-      <button v-if="audioUrl" class="btn-ghost mt-1.5 px-2.5 py-1 text-xs" @click="playRecording">
-        ▶ 回放我的录音
+    </div>
+
+    <!-- 离线识别（本地 Whisper，不依赖 Google/微软云服务）：有录音即可用 -->
+    <div v-if="audioUrl && !listening" class="mt-2 rounded-lg bg-pine/5 px-3 py-2 text-xs leading-6">
+      <p class="text-ink/60">云端识别不可用？可以改用本地离线识别，模型在浏览器内运行、不联网：</p>
+      <p class="mt-1 text-ink/40">
+        模型下载地址（HuggingFace 国内镜像）：
+        <a
+          href="https://hf-mirror.com/onnx-community/whisper-tiny.en"
+          target="_blank"
+          rel="noopener"
+          class="text-pine underline"
+          lang="en"
+        >hf-mirror.com/onnx-community/whisper-tiny.en</a>
+        （约 40MB，首次下载后浏览器缓存，之后离线可用）
+      </p>
+      <button
+        class="btn mt-1.5 bg-pine text-xs text-paper hover:bg-moss disabled:opacity-50"
+        :disabled="offlineBusy"
+        @click="runOffline"
+      >
+        {{ offlineBusy ? '⏳ ' + (offlineProgress || '处理中…') : '🤖 用离线识别评分' }}
       </button>
-      <!-- 云端识别失败时：离线识别兜底（本地 Whisper，不依赖 Google/微软服务） -->
-      <div v-if="audioUrl" class="mt-2 rounded-lg bg-pine/5 px-3 py-2">
-        <p class="text-ink/60">云端识别不可用？可以改用本地离线识别（模型一次性下载约 40MB，之后离线可用）：</p>
-        <button
-          class="btn mt-1.5 bg-pine text-xs text-paper hover:bg-moss disabled:opacity-50"
-          :disabled="offlineBusy"
-          @click="runOffline"
-        >
-          {{ offlineBusy ? '⏳ ' + (offlineProgress || '处理中…') : '🤖 用离线识别评分' }}
-        </button>
-      </div>
     </div>
 
     <!-- 识别接口事件日志：定位识别链路断在哪一环 -->
@@ -334,9 +400,6 @@ function playRecording() {
           <p class="mt-0.5 text-xs text-ink/40">
             读对 {{ result.correct }}/{{ result.total }} 个词 · 识别结果：<span lang="en" class="font-mono">{{ result.transcript || '（空）' }}</span>
           </p>
-          <button v-if="audioUrl" class="btn-ghost mt-1 px-2.5 py-1 text-xs" @click="playRecording">
-            ▶ 回放我的录音
-          </button>
         </div>
       </div>
       <!-- 逐词反馈 -->
