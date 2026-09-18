@@ -15,6 +15,38 @@ const groupColor = (key) => tenseGroups.find((g) => g.key === key)?.color
 const W = 1000
 const px = (pos) => (pos / 100) * W
 const NOW_X = px(50)
+
+// 标签车道：上 3 行 / 下 3 行，贪心分配避免重叠
+const laneY = { above: [66, 48, 30], below: [116, 138, 160] }
+const labels = computed(() => {
+  const items = tenses
+    .map((t) => ({
+      t,
+      x: t.span ? px((t.span[0] + t.span[1]) / 2) : px(t.pos),
+      w: t.name.length * 12 + 14, // 估算中文标签宽度
+    }))
+    .sort((a, b) => a.x - b.x)
+
+  const edge = { above: [-Infinity, -Infinity, -Infinity], below: [-Infinity, -Infinity, -Infinity] }
+  return items.map((item, i) => {
+    // 奇偶交替优先上/下，让标签分布均匀
+    const order =
+      i % 2 === 0
+        ? [['below', 0], ['above', 0], ['below', 1], ['above', 1], ['below', 2], ['above', 2]]
+        : [['above', 0], ['below', 0], ['above', 1], ['below', 1], ['above', 2], ['below', 2]]
+    let side = 'below'
+    let lane = 2
+    for (const [s, l] of order) {
+      if (item.x - item.w / 2 > edge[s][l] + 10) {
+        side = s
+        lane = l
+        break
+      }
+    }
+    edge[side][lane] = item.x + item.w / 2
+    return { ...item, side, lane, y: laneY[side][lane] }
+  })
+})
 </script>
 
 <template>
@@ -28,62 +60,68 @@ const NOW_X = px(50)
 
     <!-- 时间轴 -->
     <div class="card overflow-x-auto p-4">
-      <svg :viewBox="`0 0 ${W} 190`" class="min-w-[720px]" role="img" aria-label="时态时间线">
+      <svg :viewBox="`0 0 ${W} 180`" class="min-w-[720px]" role="img" aria-label="时态时间线">
         <!-- 主轴 -->
-        <line x1="20" :y1="90" :x2="W - 20" y2="90" stroke="#22301f" stroke-width="2" />
+        <line x1="20" y1="90" :x2="W - 20" y2="90" stroke="#22301f" stroke-width="2" />
         <polygon :points="`${W - 14},85 ${W - 2},90 ${W - 14},95`" fill="#22301f" />
 
         <!-- 区域标签 -->
-        <text :x="px(25)" y="30" text-anchor="middle" font-size="15" fill="#c65f3d" font-weight="bold">过去 PAST</text>
-        <text :x="NOW_X" y="30" text-anchor="middle" font-size="15" fill="#2f5233" font-weight="bold">现在 NOW</text>
-        <text :x="px(80)" y="30" text-anchor="middle" font-size="15" fill="#3d6ec6" font-weight="bold">未来 FUTURE</text>
+        <text :x="px(25)" y="14" text-anchor="middle" font-size="14" fill="#c65f3d" font-weight="bold">过去 PAST</text>
+        <text :x="NOW_X" y="14" text-anchor="middle" font-size="14" fill="#2f5233" font-weight="bold">现在 NOW</text>
+        <text :x="px(80)" y="14" text-anchor="middle" font-size="14" fill="#3d6ec6" font-weight="bold">未来 FUTURE</text>
 
         <!-- 现在竖线 -->
-        <line :x1="NOW_X" y1="45" :x2="NOW_X" y2="160" stroke="#2f5233" stroke-width="2" stroke-dasharray="5 4" />
-        <circle :cx="NOW_X" cy="90" r="5" fill="#2f5233" />
+        <line :x1="NOW_X" y1="20" :x2="NOW_X" y2="168" stroke="#2f5233" stroke-width="2" stroke-dasharray="5 4" />
 
-        <!-- 每个时态的标记 -->
-        <g v-for="(t, i) in tenses" :key="t.id" class="cursor-pointer" @click="activeId = t.id">
-          <!-- 区间（span） -->
+        <!-- 每个时态：轴上标记 + 引线 + 车道标签 -->
+        <g v-for="item in labels" :key="item.t.id" class="cursor-pointer" @click="activeId = item.t.id">
+          <!-- 区间标记（轴上） -->
           <rect
-            v-if="t.span"
-            :x="px(t.span[0])"
-            :y="i % 2 === 0 ? 108 : 62"
-            :width="px(t.span[1]) - px(t.span[0])"
-            height="10"
-            rx="5"
-            :fill="groupColor(t.group)"
-            :opacity="activeId === t.id ? 0.9 : 0.35"
+            v-if="item.t.span"
+            :x="px(item.t.span[0])"
+            y="84"
+            :width="px(item.t.span[1]) - px(item.t.span[0])"
+            height="12"
+            rx="6"
+            :fill="groupColor(item.t.group)"
+            :opacity="activeId === item.t.id ? 0.95 : 0.3"
+            :stroke="groupColor(item.t.group)"
+            :stroke-width="activeId === item.t.id ? 1.5 : 0"
           />
-          <!-- 点 -->
+          <!-- 点标记（轴上） -->
           <circle
             v-else
-            :cx="px(t.pos)"
-            :cy="i % 2 === 0 ? 113 : 67"
-            r="7"
-            :fill="groupColor(t.group)"
-            :opacity="activeId === t.id ? 1 : 0.45"
+            :cx="px(item.t.pos)"
+            cy="90"
+            :r="activeId === item.t.id ? 8 : 6"
+            :fill="groupColor(item.t.group)"
+            :opacity="activeId === item.t.id ? 1 : 0.5"
+            stroke="#f5f7f0"
+            stroke-width="1.5"
           />
-          <!-- 引线 -->
+          <!-- 引线：从轴线到标签车道 -->
           <line
-            :x1="t.span ? px((t.span[0] + t.span[1]) / 2) : px(t.pos)"
-            :y1="i % 2 === 0 ? 118 : 74"
-            :x2="t.span ? px((t.span[0] + t.span[1]) / 2) : px(t.pos)"
-            :y2="i % 2 === 0 ? 148 : 42"
-            :stroke="groupColor(t.group)"
-            stroke-width="1"
-            :opacity="activeId === t.id ? 0.9 : 0.3"
+            :x1="item.x"
+            :y1="item.side === 'below' ? 100 : 80"
+            :x2="item.x"
+            :y2="item.side === 'below' ? item.y - 10 : item.y + 5"
+            :stroke="groupColor(item.t.group)"
+            :stroke-width="activeId === item.t.id ? 1.5 : 1"
+            :opacity="activeId === item.t.id ? 0.9 : 0.35"
           />
-          <!-- 名称 -->
+          <!-- 标签 -->
           <text
-            :x="t.span ? px((t.span[0] + t.span[1]) / 2) : px(t.pos)"
-            :y="i % 2 === 0 ? 165 : 20"
+            :x="item.x"
+            :y="item.y"
             text-anchor="middle"
             font-size="12"
-            :fill="activeId === t.id ? groupColor(t.group) : '#8a8f85'"
-            :font-weight="activeId === t.id ? 'bold' : 'normal'"
-          >{{ t.name }}</text>
+            :fill="activeId === item.t.id ? groupColor(item.t.group) : '#8a8f85'"
+            :font-weight="activeId === item.t.id ? 'bold' : 'normal'"
+          >{{ item.t.name }}</text>
         </g>
+
+        <!-- 现在标记（置顶，避免被区间条遮挡） -->
+        <circle :cx="NOW_X" cy="90" r="6" fill="#2f5233" stroke="#f5f7f0" stroke-width="2" />
       </svg>
       <div class="mt-1 flex gap-4 text-xs text-ink/50">
         <span><i class="mr-1 inline-block h-2 w-2 rounded-full bg-pine align-middle" />点 = 某时刻发生</span>
