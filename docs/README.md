@@ -46,4 +46,7 @@
 播放示范音应该有一个喇叭的动画
 扩充词库到全量
 增加英语词典功能，可以输入英语单词，给出单词解释，示例，用户可以点击播放按钮，播放单词发音，也可以点击录音按钮，录音后，点击播放按钮，播放用户录音
+Access to fetch at 'https://api.dictionaryapi.dev/api/v2/entries/en/hello' from origin 'https://englift.luomor.com'
+  has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested
+  resource.使用php转发请求
 ```

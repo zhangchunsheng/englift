@@ -54,4 +54,14 @@ npm run preview   # 预览构建产物
 location / {
   try_files $uri $uri/index.html /index.html;
 }
+
+# 词典在线释义走 PHP 代理（public/api/dict.php → dist/api/dict.php）
+location ~ ^/api/.*\.php$ {
+  fastcgi_pass unix:/run/php/php-fpm.sock;
+  fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+  include fastcgi_params;
+}
 ```
+
+`api/dict.php` 转发 `api.dictionaryapi.dev`，解决浏览器 CORS 限制；带 24 小时文件缓存
+（存于系统临时目录），输入仅允许字母/连字符/撇号。

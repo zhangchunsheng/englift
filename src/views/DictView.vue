@@ -82,12 +82,10 @@ async function search() {
   }
 }
 
-// 在线词典（dictionaryapi.dev）：本地查不到时兜底 / 本地命中时展开英英释义
+// 在线词典：经本站 PHP 代理转发 api.dictionaryapi.dev（解决浏览器 CORS 限制）
 async function searchApi(q, asPrimary = false) {
   try {
-    const res = await fetch(
-      `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(q)}`
-    )
+    const res = await fetch(`/api/dict.php?word=${encodeURIComponent(q)}`)
     if (!res.ok) throw new Error('not found')
     const data = await res.json()
     const first = data[0]
