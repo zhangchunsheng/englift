@@ -17,6 +17,7 @@ const props = defineProps({
 const supported = isRecognitionSupported()
 const listening = ref(false)
 const liveText = ref('') // 实时识别文本
+const audioUrl = ref(null) // 用户录音（Blob URL）
 const result = ref(null)
 const error = ref('')
 const showMicGuide = ref(false) // 麦克风权限指引
@@ -129,6 +130,7 @@ async function start() {
   error.value = ''
   result.value = null
   liveText.value = ''
+  audioUrl.value = null
   if (!(await ensureMicPermission())) return
   listening.value = true
   try {
@@ -136,9 +138,11 @@ async function start() {
       lang: 'en-US',
       onUpdate: (t) => (liveText.value = t),
     })
-    const transcript = await session.promise
-    result.value = { ...scoreAttempt(props.text, transcript), transcript }
+    const { text, audioUrl: url } = await session.promise
+    audioUrl.value = url
+    result.value = { ...scoreAttempt(props.text, text), transcript: text }
   } catch (e) {
+    if (e.audioUrl) audioUrl.value = e.audioUrl
     if (e.message === 'not-allowed' || e.message === 'service-not-allowed') {
       showMicGuide.value = true
     } else {
@@ -148,6 +152,10 @@ async function start() {
     listening.value = false
     session = null
   }
+}
+
+function playRecording() {
+  if (audioUrl.value) new Audio(audioUrl.value).play()
 }
 </script>
 
@@ -191,7 +199,15 @@ async function start() {
       </details>
     </div>
 
-    <p v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs text-clay">{{ error }}</p>
+    <div v-if="error" class="mt-2 rounded-lg bg-clay/10 px-3 py-2 text-xs text-clay">
+      <p>{{ error }}</p>
+      <button v-if="audioUrl" class="btn-ghost mt-1.5 px-2.5 py-1 text-xs" @click="playRecording">
+        ▶ 回放我的录音
+      </button>
+      <p v-if="audioUrl" class="mt-1 text-ink/40">
+        若录音里能听到自己的声音但识别为空：Chrome 识别用的默认麦克风可能选错设备 → 地址栏 🔒 → 网站设置 → 麦克风，换另一个设备试试。
+      </p>
+    </div>
 
     <!-- 麦克风开启指引 -->
     <div v-if="showMicGuide" class="mt-2 rounded-xl border border-sun/40 bg-sun/10 p-3 text-xs leading-6 text-ink/70">
@@ -236,6 +252,9 @@ async function start() {
           <p class="mt-0.5 text-xs text-ink/40">
             读对 {{ result.correct }}/{{ result.total }} 个词 · 识别结果：<span lang="en" class="font-mono">{{ result.transcript || '（空）' }}</span>
           </p>
+          <button v-if="audioUrl" class="btn-ghost mt-1 px-2.5 py-1 text-xs" @click="playRecording">
+            ▶ 回放我的录音
+          </button>
         </div>
       </div>
       <!-- 逐词反馈 -->

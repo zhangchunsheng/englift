@@ -10,7 +10,8 @@ export function isRecognitionSupported() {
 
 /**
  * 启动一次语音识别，返回 { promise, stop }
- * promise resolve 为识别文本；stop() 可提前结束并取回已有结果
+ * promise resolve 为 { text, audioUrl }：识别文本 + 用户录音（Blob URL，可回放）
+ * reject 的 Error 上同样可能挂有 audioUrl（如 no-speech 时也可回放自查）
  *
  * 内置 VAD（音量监测）：
  * - 检测到说话后，静音 silenceMs 自动结束（无需手动点停）
@@ -41,6 +42,9 @@ export function recognizeOnce({
   let lastSpeechAt = 0
   let audioCtx = null
   let stream = null
+  let recorder = null
+  let chunks = []
+  let audioUrl = null
   let rafId = 0
   const startedAt = Date.now()
 
@@ -53,30 +57,52 @@ export function recognizeOnce({
     rejectPromise = rej
   })
 
-  function cleanup() {
-    cancelAnimationFrame(rafId)
-    try {
-      audioCtx?.close()
-    } catch {
-      /* 忽略 */
+  function buildAudio() {
+    if (!audioUrl && chunks.length) {
+      const type = recorder?.mimeType || 'audio/webm'
+      audioUrl = URL.createObjectURL(new Blob(chunks, { type }))
     }
-    stream?.getTracks().forEach((t) => t.stop())
-    stream = null
+    return audioUrl
   }
 
   function finish(err) {
     if (settled) return
     settled = true
-    cleanup()
+    cancelAnimationFrame(rafId)
     try {
       rec.onresult = rec.onerror = rec.onend = null
       rec.stop()
     } catch {
       /* 忽略 */
     }
-    const text = currentText()
-    if (text) resolvePromise(text)
-    else rejectPromise(err || new Error('no-speech'))
+    // 先等 MediaRecorder 把最后的数据吐出来（onstop 异步），再汇总结果
+    const complete = () => {
+      try {
+        audioCtx?.close()
+      } catch {
+        /* 忽略 */
+      }
+      stream?.getTracks().forEach((t) => t.stop())
+      stream = null
+      const text = currentText()
+      const audio = buildAudio()
+      if (text) resolvePromise({ text, audioUrl: audio })
+      else {
+        const e = err || new Error('no-speech')
+        e.audioUrl = audio
+        rejectPromise(e)
+      }
+    }
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.onstop = complete
+      try {
+        recorder.stop()
+      } catch {
+        complete()
+      }
+    } else {
+      complete()
+    }
   }
 
   rec.onresult = (e) => {
@@ -94,11 +120,32 @@ export function recognizeOnce({
     if (!settled) finish(currentText() ? null : new Error('no-speech'))
   }
 
-  // 音量监测：RMS 超过阈值视为说话，说完后静音自动结束
-  async function startVAD() {
+  // 录音 + 音量监测：RMS 超过阈值视为说话，说完后静音自动结束
+  async function startAudio() {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+
+      // 全程录音，供用户回放
+      try {
+        const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) =>
+          window.MediaRecorder?.isTypeSupported?.(t)
+        )
+        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+        recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data)
+        recorder.start(250)
+      } catch {
+        recorder = null
+      }
+
       audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+      // 浏览器自动播放策略：AudioContext 可能处于 suspended，必须显式 resume
+      if (audioCtx.state === 'suspended') {
+        try {
+          await audioCtx.resume()
+        } catch {
+          /* 忽略 */
+        }
+      }
       const src = audioCtx.createMediaStreamSource(stream)
       const analyser = audioCtx.createAnalyser()
       analyser.fftSize = 512
@@ -114,7 +161,7 @@ export function recognizeOnce({
         }
         const rms = Math.sqrt(sum / buf.length)
         const now = Date.now()
-        if (rms > 0.025) {
+        if (rms > 0.012) {
           heardSpeech = true
           lastSpeechAt = now
         }
@@ -125,13 +172,13 @@ export function recognizeOnce({
       }
       rafId = requestAnimationFrame(tick)
     } catch {
-      // VAD 不可用时退化为固定时长
+      // 音频通道不可用时退化为固定时长
       setTimeout(() => finish(null), maxMs)
     }
   }
 
   rec.start()
-  startVAD()
+  startAudio()
 
   return { promise, stop: () => finish(null) }
 }
