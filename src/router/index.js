@@ -26,6 +26,10 @@ const routes = [
     meta: { title: '句子拆解', description: '英语五大基本句型逐块拆解：主谓、主谓宾、主系表、双宾语、宾语补足语，点击词块查看句子成分与划分依据。' },
   },
   {
+    path: '/words', name: 'words', component: () => import('../views/RandomWord.vue'),
+    meta: { title: '随机单词', description: '从六个级别词库（小学/初中/高中/四级/六级/考研）随机抽单词：音标、释义、双语例句、发音播放、录音回放与跟读评分。' },
+  },
+  {
     path: '/quiz/:topic?', name: 'quiz', component: () => import('../views/QuizView.vue'),
     meta: { title: '配套练习', description: '英语配套练习：时态、词形、介词、音标、句法五个专项，选择/填空/排序题型，自动判分并收入错题本。' },
   },

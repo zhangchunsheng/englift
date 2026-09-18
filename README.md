@@ -17,6 +17,7 @@ Vue 3 + Vite + Tailwind CSS 4 + Vue Router（localStorage 持久化学习进度�
 | 介词街区地图 | `/prepositions` | 方位/移动介词标注在街区地图上，across vs through 辨析 |
 | 音标图谱 | `/phonemes` | 48 个国际音标点读发音（SpeechSynthesis），清浊成对 + 易混音对比 |
 | 句子拆解 | `/sentences` | 五大基本句型逐块拆解，点击词块查看成分 |
+| 随机单词 | `/words` | 六级词库（小学/初中/高中/四级/六级/考研，JSON 格式位于 `src/data/wordbank/`）随机抽词，发音播放 + 录音回放 + 跟读评分 |
 | 配套练习 | `/quiz/:topic` | 选择 / 填空 / 排序，自动判分 |
 | 错题本 | `/mistakes` | 错题自动收录，掌握后移除 |
 
