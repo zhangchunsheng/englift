@@ -195,7 +195,7 @@ function playRecording() {
     <p v-if="listening" class="mt-2 rounded-lg bg-pine/5 px-3 py-2 text-xs leading-6 text-ink/60">
       <span class="mr-1 inline-block h-2 w-2 animate-pulse rounded-full bg-clay align-middle" />
       正在识别<span lang="en" class="font-mono text-pine">{{ liveText || '…' }}</span>
-      <span class="text-ink/30">（停顿 1.5 秒自动结束，也可再点按钮提前结束）</span>
+      <span class="text-ink/30">（停顿约 2 秒自动结束，也可再点按钮提前结束）</span>
     </p>
 
     <!-- 诊断面板 -->

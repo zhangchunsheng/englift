@@ -13,16 +13,15 @@ export function isRecognitionSupported() {
  * promise resolve 为 { text, audioUrl }：识别文本 + 用户录音（Blob URL，可回放）
  * reject 的 Error 上同样可能挂有 audioUrl（如 no-speech 时也可回放自查）
  *
- * 内置 VAD（音量监测）：
- * - 检测到说话后，静音 silenceMs 自动结束（无需手动点停）
- * - 一直没人说话 noSpeechMs 自动结束并报 no-speech
+ * 结束时机完全由识别接口驱动（不做本地音量判定）：
+ * - 收到识别结果后停顿 silenceMs 自动结束
+ * - 识别服务自己结束（onend）时收尾
  * - 最长 maxMs 强制结束
  * - onUpdate 回调实时文本（含临时结果）
  */
 export function recognizeOnce({
   lang = 'en-US',
-  silenceMs = 1500,
-  noSpeechMs = 6000,
+  silenceMs = 2000,
   maxMs = 15000,
   onUpdate,
 } = {}) {
@@ -38,14 +37,12 @@ export function recognizeOnce({
   let finalText = ''
   let interimText = ''
   let settled = false
-  let heardSpeech = false
-  let lastSpeechAt = 0
-  let audioCtx = null
+  let gotResult = false
+  let lastResultAt = 0
   let stream = null
   let recorder = null
   let chunks = []
   let audioUrl = null
-  let rafId = 0
   const startedAt = Date.now()
 
   const currentText = () => (finalText + ' ' + interimText).trim()
@@ -68,7 +65,7 @@ export function recognizeOnce({
   function finish(err) {
     if (settled) return
     settled = true
-    cancelAnimationFrame(rafId)
+    clearInterval(timer)
     try {
       rec.onresult = rec.onerror = rec.onend = null
       rec.stop()
@@ -77,11 +74,6 @@ export function recognizeOnce({
     }
     // 先等 MediaRecorder 把最后的数据吐出来（onstop 异步），再汇总结果
     const complete = () => {
-      try {
-        audioCtx?.close()
-      } catch {
-        /* 忽略 */
-      }
       stream?.getTracks().forEach((t) => t.stop())
       stream = null
       const text = currentText()
@@ -111,8 +103,8 @@ export function recognizeOnce({
       if (e.results[i].isFinal) finalText += e.results[i][0].transcript + ' '
       else interimText += e.results[i][0].transcript
     }
-    heardSpeech = true
-    lastSpeechAt = Date.now()
+    gotResult = true
+    lastResultAt = Date.now()
     emit()
   }
   rec.onerror = (e) => finish(new Error(e.error || 'unknown'))
@@ -120,86 +112,39 @@ export function recognizeOnce({
     if (!settled) finish(currentText() ? null : new Error('no-speech'))
   }
 
-  // 录音 + 音量监测：RMS 超过阈值视为说话，说完后静音自动结束
-  async function startAudio() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  // 结束判定：有识别结果后停顿 silenceMs 自动结束；maxMs 强制兜底
+  const timer = setInterval(() => {
+    if (settled) return clearInterval(timer)
+    const now = Date.now()
+    if (gotResult && now - lastResultAt > silenceMs) finish(null)
+    else if (now - startedAt > maxMs) finish(null)
+  }, 200)
 
-      // 全程录音，供用户回放
+  // 全程录音，供用户回放（独立链路，不影响识别）
+  navigator.mediaDevices
+    .getUserMedia({ audio: true })
+    .then((s) => {
+      if (settled) {
+        s.getTracks().forEach((t) => t.stop())
+        return
+      }
+      stream = s
       try {
         const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'].find((t) =>
           window.MediaRecorder?.isTypeSupported?.(t)
         )
-        recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
+        recorder = new MediaRecorder(s, mimeType ? { mimeType } : undefined)
         recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data)
         recorder.start(250)
       } catch {
         recorder = null
       }
-
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-      // 浏览器自动播放策略：AudioContext 可能处于 suspended，必须显式 resume
-      try {
-        if (audioCtx.state === 'suspended') await audioCtx.resume()
-      } catch {
-        /* 忽略 */
-      }
-      // resume 不成功则 VAD 不可用：退化为「仅识别事件驱动」模式，
-      // 不再用音量判定"没说话"，避免误报 no-speech
-      const vadOk = audioCtx.state === 'running'
-
-      if (!vadOk) {
-        // 识别长时间（12s）无任何结果才结束
-        const timer = setInterval(() => {
-          if (settled) return clearInterval(timer)
-          const now = Date.now()
-          if (heardSpeech && now - lastSpeechAt > silenceMs * 2) {
-            clearInterval(timer)
-            finish(null)
-          } else if (!heardSpeech && now - startedAt > noSpeechMs * 2) {
-            clearInterval(timer)
-            finish(new Error('no-speech'))
-          } else if (now - startedAt > maxMs) {
-            clearInterval(timer)
-            finish(null)
-          }
-        }, 200)
-        return
-      }
-
-      const src = audioCtx.createMediaStreamSource(stream)
-      const analyser = audioCtx.createAnalyser()
-      analyser.fftSize = 512
-      src.connect(analyser)
-      const buf = new Uint8Array(analyser.frequencyBinCount)
-      const tick = () => {
-        if (settled) return
-        analyser.getByteTimeDomainData(buf)
-        let sum = 0
-        for (let i = 0; i < buf.length; i++) {
-          const v = (buf[i] - 128) / 128
-          sum += v * v
-        }
-        const rms = Math.sqrt(sum / buf.length)
-        const now = Date.now()
-        if (rms > 0.012) {
-          heardSpeech = true
-          lastSpeechAt = now
-        }
-        if (heardSpeech && now - lastSpeechAt > silenceMs) return finish(null)
-        if (!heardSpeech && now - startedAt > noSpeechMs) return finish(new Error('no-speech'))
-        if (now - startedAt > maxMs) return finish(null)
-        rafId = requestAnimationFrame(tick)
-      }
-      rafId = requestAnimationFrame(tick)
-    } catch {
-      // 音频通道不可用时退化为固定时长
-      setTimeout(() => finish(null), maxMs)
-    }
-  }
+    })
+    .catch(() => {
+      /* 录音失败不影响识别 */
+    })
 
   rec.start()
-  startAudio()
 
   return { promise, stop: () => finish(null) }
 }
