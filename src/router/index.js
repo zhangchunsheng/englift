@@ -30,6 +30,10 @@ const routes = [
     meta: { title: '随机单词', description: '全量词库随机抽词：小学/初中/高中/四级/六级/考研共 16129 词，含音标、释义、双语例句、发音播放、录音回放与跟读评分。' },
   },
   {
+    path: '/dict', name: 'dict', component: () => import('../views/DictView.vue'),
+    meta: { title: '英语词典', description: '英语单词查询：本地 8174 词离线秒查（小学到考研六级词库去重合并），在线词典兜底提供真人发音与英英释义，支持录音回放与跟读评分。' },
+  },
+  {
     path: '/quiz/:topic?', name: 'quiz', component: () => import('../views/QuizView.vue'),
     meta: { title: '配套练习', description: '英语配套练习：时态、词形、介词、音标、句法五个专项，选择/填空/排序题型，自动判分并收入错题本。' },
   },

@@ -12,6 +12,7 @@ const nav = [
   { to: '/phonemes', label: '音标' },
   { to: '/sentences', label: '句子拆解' },
   { to: '/words', label: '随机单词' },
+  { to: '/dict', label: '词典' },
   { to: '/quiz', label: '练习' },
 ]
 const open = ref(false)
