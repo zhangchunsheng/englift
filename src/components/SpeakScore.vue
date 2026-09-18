@@ -8,6 +8,7 @@ import {
   mapSpeechError,
   analyzeRecording,
 } from '../utils/speechScore'
+import { transcribeRecording } from '../utils/localAsr'
 import { speak } from '../utils/speech'
 
 const props = defineProps({
@@ -27,8 +28,39 @@ const showMicGuide = ref(false) // 麦克风权限指引
 const noDeviceInfo = ref(null) // 找不到设备时的排查信息
 const diag = ref(null) // 诊断结果
 const diagOpen = ref(false)
+const offlineBusy = ref(false) // 离线识别进行中
+const offlineProgress = ref('') // 模型下载/加载进度
 const insecure = typeof window !== 'undefined' && !window.isSecureContext
 let session = null
+
+/** 用本地 Whisper 模型离线识别刚才的录音并评分（不依赖任何云端服务） */
+async function runOffline() {
+  if (!audioUrl.value || offlineBusy.value) return
+  offlineBusy.value = true
+  offlineProgress.value = '准备模型…'
+  error.value = ''
+  try {
+    const text = await transcribeRecording(audioUrl.value, (p) => {
+      // transformers.js 进度事件：{status, file, progress}
+      if (p.status === 'progress' && p.progress != null)
+        offlineProgress.value = `下载模型 ${Math.round(p.progress)}%（${p.file}）`
+      else if (p.status === 'ready') offlineProgress.value = '识别中…'
+      else offlineProgress.value = '加载模型…'
+    })
+    offlineProgress.value = ''
+    if (text) {
+      errorDetail.value = ''
+      result.value = { ...scoreAttempt(props.text, text), transcript: `${text}（离线识别）` }
+    } else {
+      error.value = '离线识别没有听出内容，请再试一次（说慢一点、清楚一点）'
+    }
+  } catch (e) {
+    error.value = '离线识别失败：' + (e?.message || e)
+    offlineProgress.value = ''
+  } finally {
+    offlineBusy.value = false
+  }
+}
 
 /** 麦克风环境诊断：把判断链路每一步的真实状态列出来 */
 async function runDiag() {
@@ -239,6 +271,17 @@ function playRecording() {
       <button v-if="audioUrl" class="btn-ghost mt-1.5 px-2.5 py-1 text-xs" @click="playRecording">
         ▶ 回放我的录音
       </button>
+      <!-- 云端识别失败时：离线识别兜底（本地 Whisper，不依赖 Google/微软服务） -->
+      <div v-if="audioUrl" class="mt-2 rounded-lg bg-pine/5 px-3 py-2">
+        <p class="text-ink/60">云端识别不可用？可以改用本地离线识别（模型一次性下载约 40MB，之后离线可用）：</p>
+        <button
+          class="btn mt-1.5 bg-pine text-xs text-paper hover:bg-moss disabled:opacity-50"
+          :disabled="offlineBusy"
+          @click="runOffline"
+        >
+          {{ offlineBusy ? '⏳ ' + (offlineProgress || '处理中…') : '🤖 用离线识别评分' }}
+        </button>
+      </div>
     </div>
 
     <!-- 识别接口事件日志：定位识别链路断在哪一环 -->
