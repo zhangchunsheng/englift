@@ -7,7 +7,7 @@ const modules = [
   {
     to: '/tenses', icon: '🕰️', title: '时态时间线', en: 'Tense Timeline',
     desc: '把 12 个时态钉在同一条时间线上：点、线段与区域，一眼看清动作和时间的关系。',
-    tags: ['交互演示', '双语例句'],
+    tags: ['交互演示', '双语例句', '跟读评分'],
   },
   {
     to: '/verbs', icon: '🔀', title: '词形变化', en: 'Verb Forms',
@@ -22,7 +22,7 @@ const modules = [
   {
     to: '/phonemes', icon: '🔊', title: '音标图谱', en: 'Phoneme Chart',
     desc: '48 个国际音标点读发音，清浊成对排列，附易混音对比和口型提示。',
-    tags: ['点读发音', '易混音对比'],
+    tags: ['点读发音', '易混音对比', '发音评分'],
   },
   {
     to: '/sentences', icon: '🧩', title: '句子拆解', en: 'Sentence Lab',

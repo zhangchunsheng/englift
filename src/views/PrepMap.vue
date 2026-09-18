@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { placePreps, movePreps } from '../data/prepositions'
 import { markVisit } from '../stores/progress'
 import { speak } from '../utils/speech'
+import SpeakScore from '../components/SpeakScore.vue'
 
 onMounted(() => markVisit('prepositions'))
 
@@ -146,6 +147,7 @@ function switchTab(t) {
               </div>
               <button class="btn-ghost shrink-0" @click="speak(active.example.en)" aria-label="朗读例句">🔊</button>
             </div>
+            <SpeakScore :key="active.word" :text="active.example.en" class="mt-2" />
           </div>
         </div>
 

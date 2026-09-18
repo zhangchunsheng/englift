@@ -20,6 +20,10 @@ Vue 3 + Vite + Tailwind CSS 4 + Vue Router（localStorage 持久化学习进度�
 | 配套练习 | `/quiz/:topic` | 选择 / 填空 / 排序，自动判分 |
 | 错题本 | `/mistakes` | 错题自动收录，掌握后移除 |
 
+另有贯穿各模块的**发音评分**功能（`src/components/SpeakScore.vue`）：基于浏览器 Web Speech
+Recognition 识别跟读内容，与目标文本做词级 Levenshtein 对齐评分，逐词标出读对/接近/读错/漏读。
+需 Chrome / Edge 并联网；不支持的浏览器自动隐藏入口。
+
 ## 开发
 
 ```shell

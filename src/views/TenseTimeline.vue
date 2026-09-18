@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { tenses, tenseGroups } from '../data/tenses'
 import { markVisit } from '../stores/progress'
 import { speak } from '../utils/speech'
+import SpeakScore from '../components/SpeakScore.vue'
 
 onMounted(() => markVisit('tenses'))
 
@@ -158,13 +159,16 @@ const labels = computed(() => {
         <div
           v-for="(ex, i) in active.examples"
           :key="i"
-          class="flex items-center justify-between gap-3 rounded-xl border border-ink/10 px-4 py-3"
+          class="rounded-xl border border-ink/10 px-4 py-3"
         >
-          <div>
-            <p class="font-medium" lang="en">{{ ex.en }}</p>
-            <p class="text-sm text-ink/50">{{ ex.zh }}</p>
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="font-medium" lang="en">{{ ex.en }}</p>
+              <p class="text-sm text-ink/50">{{ ex.zh }}</p>
+            </div>
+            <button class="btn-ghost shrink-0" @click="speak(ex.en)" aria-label="朗读例句">🔊</button>
           </div>
-          <button class="btn-ghost shrink-0" @click="speak(ex.en)" aria-label="朗读例句">🔊</button>
+          <SpeakScore :text="ex.en" class="mt-2" />
         </div>
       </div>
 

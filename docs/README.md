@@ -3,4 +3,5 @@
 时态时间线svg文字重叠了，请修复
 优化SEO和GEO
 域名https://englift.luomor.com/
+增加用户读单词，读句子等发音评分功能
 ```

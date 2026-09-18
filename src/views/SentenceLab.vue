@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { patterns, roleLegend } from '../data/sentences'
 import { markVisit } from '../stores/progress'
 import { speak } from '../utils/speech'
+import SpeakScore from '../components/SpeakScore.vue'
 
 onMounted(() => markVisit('sentences'))
 
@@ -98,6 +99,14 @@ function clickChunk(chunk) {
         <button class="btn-ghost ml-2 shrink-0" @click="speak(sentence.chunks.map((c) => c.text).join(' '))" aria-label="朗读整句">🔊</button>
       </div>
       <p class="mt-2 text-center text-sm text-ink/50">{{ sentence.zh }}</p>
+
+      <!-- 整句跟读评分 -->
+      <div class="mt-4 flex justify-center">
+        <SpeakScore
+          :key="patternId + '-' + sentenceIdx"
+          :text="sentence.chunks.map((c) => c.text).join(' ')"
+        />
+      </div>
 
       <!-- 点击词块的解释 -->
       <transition name="pop">

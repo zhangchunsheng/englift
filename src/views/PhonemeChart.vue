@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { vowels, consonants, confusables } from '../data/phonemes'
 import { markVisit } from '../stores/progress'
 import { speak } from '../utils/speech'
+import SpeakScore from '../components/SpeakScore.vue'
 
 onMounted(() => markVisit('phonemes'))
 
@@ -96,6 +97,11 @@ function pick(p) {
           <p v-if="selected.pair" class="mt-2 text-xs text-ink/40">
             清浊对应：{{ selected.ipa }} ↔ {{ selected.pair }}（发音部位相同，只差声带是否振动）
           </p>
+          <!-- 跟读例词评分 -->
+          <div class="mt-4 border-t border-ink/10 pt-3">
+            <p class="mb-1 text-xs text-ink/40">读出例词，测试发音：</p>
+            <SpeakScore :key="selected.ipa" :text="selected.word" />
+          </div>
         </div>
         <div v-else class="card p-5 text-sm text-ink/40">
           👈 点击左侧任意音标卡片，听例词发音并查看口型提示。

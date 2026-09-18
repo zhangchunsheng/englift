@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router'
 import { verbs, verbTypes } from '../data/verbs'
 import { markVisit } from '../stores/progress'
 import { speak } from '../utils/speech'
+import SpeakScore from '../components/SpeakScore.vue'
 
 onMounted(() => markVisit('verbs'))
 
@@ -144,6 +145,10 @@ const typeColor = { AAA: '#8fb996', ABB: '#e8a33d', ABA: '#3d6ec6', ABC: '#c65f3
         <button class="btn-ghost" @click="prevCard">← 上一个</button>
         <button class="btn-ghost" @click="speak(card ? `${card.base}. ${card.past}. ${card.pp}.` : '')">🔊 朗读</button>
         <button class="btn-primary" @click="nextCard">下一个 →</button>
+      </div>
+      <!-- 跟读例句评分 -->
+      <div v-if="card" class="mt-4 flex justify-center">
+        <SpeakScore :key="card.base" :text="card.example.en" />
       </div>
     </div>
 
