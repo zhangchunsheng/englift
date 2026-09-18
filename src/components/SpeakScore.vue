@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   isRecognitionSupported,
   recognizeOnce,
@@ -220,9 +220,30 @@ async function start() {
   }
 }
 
+// 回放状态：播放中显示暂停图标，再点一次停止
+const playing = ref(false)
+let player = null
+
 function playRecording() {
-  if (audioUrl.value) new Audio(audioUrl.value).play()
+  if (playing.value && player) {
+    player.pause()
+    playing.value = false
+    return
+  }
+  if (!audioUrl.value) return
+  player?.pause()
+  player = new Audio(audioUrl.value)
+  player.onended = () => (playing.value = false)
+  player.onerror = () => (playing.value = false)
+  player.play()
+  playing.value = true
 }
+
+// 新录音生成时，停掉旧回放
+watch(audioUrl, () => {
+  player?.pause()
+  playing.value = false
+})
 
 // ===== 独立录音（不评分）：随录随听 =====
 const recordOnly = ref(false)
@@ -281,9 +302,10 @@ async function toggleRecordOnly() {
       <button
         v-if="audioUrl"
         class="btn-ghost px-2.5 py-1.5 text-xs"
-        title="回放我的录音"
+        :class="{ 'border-pine text-pine': playing }"
+        :title="playing ? '暂停回放' : '回放我的录音'"
         @click="playRecording"
-      >▶ 回放</button>
+      >{{ playing ? '⏸ 暂停' : '▶ 回放' }}</button>
       <button
         class="btn text-xs"
         :class="listening ? 'bg-clay text-paper' : 'bg-pine/10 text-pine hover:bg-pine/20'"
