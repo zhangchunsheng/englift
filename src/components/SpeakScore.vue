@@ -50,7 +50,7 @@ async function runOffline() {
     offlineProgress.value = ''
     if (text) {
       errorDetail.value = ''
-      result.value = { ...scoreAttempt(props.text, text), transcript: `${text}（离线识别）` }
+      result.value = { ...scoreAttempt(props.text, text), transcript: `${text}（离线识别，准确率有限仅供参考）` }
     } else {
       error.value = '离线识别没有听出内容，请再试一次（说慢一点、清楚一点）'
     }
@@ -340,6 +340,10 @@ async function toggleRecordOnly() {
           lang="en"
         >hf-mirror.com/onnx-community/whisper-tiny.en</a>
         （约 40MB，首次下载后浏览器缓存，之后离线可用）
+      </p>
+      <p class="mt-1 rounded bg-sun/10 px-2 py-1 text-ink/60">
+        ⚠️ 注意：本地模型（Whisper tiny）体积小、速度快，但<b>识别准确率有限</b>——可能漏词、误词，评分结果仅供参考；
+        环境音嘈杂、语速过快会更明显。需要准确评分请优先使用云端识别（🎤 跟读评分）。
       </p>
       <button
         class="btn mt-1.5 bg-pine text-xs text-paper hover:bg-moss disabled:opacity-50"
