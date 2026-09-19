@@ -40,11 +40,6 @@ const modules = [
     tags: ['离线秒查', '真人发音', '跟读评分'],
   },
   {
-    to: '/embed-guide', icon: '🧩', title: '嵌入你的网站', en: 'Embed Widget',
-    desc: '一行 iframe 代码，把随机单词卡片嵌入到你的博客/网站，访客可以直接听发音。',
-    tags: ['iframe 嵌入', 'WordPress'],
-  },
-  {
     to: '/quiz', icon: '✏️', title: '配套练习', en: 'Practice',
     desc: '选择、填空、排序三种题型，接入错题本自动复习。',
     tags: ['自动判分', '错题复习'],
