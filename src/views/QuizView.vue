@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { quizTopics, questions } from '../data/quizzes'
-import { recordQuiz } from '../stores/progress'
+import { recordQuiz, markVisit } from '../stores/progress'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,6 +22,7 @@ const picked = ref([])
 const pool = ref([])
 
 onMounted(() => {
+  markVisit('quiz')
   if (topicInfo.value) start()
 })
 

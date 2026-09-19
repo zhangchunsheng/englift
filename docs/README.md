@@ -52,4 +52,5 @@ Access to fetch at 'https://api.dictionaryapi.dev/api/v2/entries/en/hello' from 
 pc端右上角的button没有用
 1.新增一个可以嵌入iframe的页面，随机显示一个单词，用户可以点击播放按钮，播放单词发音，不需要录音
 2.新增一个页面介绍如何将新增的随机单词嵌入到其他网站中，参考https://www.luomor.com/daily_english/embed_guide.html
+已探索模块为什么显示为9
 ```

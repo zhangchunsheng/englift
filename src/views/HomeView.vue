@@ -1,7 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { progress } from '../stores/progress'
 import { quizTopics } from '../data/quizzes'
+
+// 已探索模块数：只统计模块卡片对应的页面（错题本/嵌入指南等不计入）
+const exploredCount = computed(
+  () => modules.filter((m) => progress.visits[m.to.slice(1)]).length
+)
 
 const modules = [
   {
@@ -69,7 +75,7 @@ const modules = [
       <!-- 学习统计 -->
       <div class="mt-8 flex flex-wrap gap-6 text-sm">
         <div>
-          <p class="font-display text-2xl font-bold">{{ Object.keys(progress.visits).length }}</p>
+          <p class="font-display text-2xl font-bold">{{ exploredCount }}<span class="text-sm font-normal text-paper/50"> / {{ modules.length }}</span></p>
           <p class="text-paper/60">已探索模块</p>
         </div>
         <div>
