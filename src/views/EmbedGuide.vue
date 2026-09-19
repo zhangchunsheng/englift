@@ -1,8 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { markVisit } from '../stores/progress'
-
-onMounted(() => markVisit('embed-guide'))
+import { ref, computed } from 'vue'
 
 const BASE = 'https://englift.luomor.com'
 
