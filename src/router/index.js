@@ -34,6 +34,14 @@ const routes = [
     meta: { title: '英语词典', description: '英语单词查询：本地 8174 词离线秒查（小学到考研六级词库去重合并），在线词典兜底提供真人发音与英英释义，支持录音回放与跟读评分。' },
   },
   {
+    path: '/embed/word', name: 'embed-word', component: () => import('../views/EmbedWord.vue'),
+    meta: { title: '随机单词卡片', plain: true, description: '可嵌入第三方网站的随机英语单词卡片：音标、释义、双语例句与发音播放。' },
+  },
+  {
+    path: '/embed-guide', name: 'embed-guide', component: () => import('../views/EmbedGuide.vue'),
+    meta: { title: '嵌入指南', description: '如何把 EngLift 随机单词卡片用 iframe 嵌入到自己的网站/博客（WordPress 等），含代码示例、参数说明与常见问题。' },
+  },
+  {
     path: '/quiz/:topic?', name: 'quiz', component: () => import('../views/QuizView.vue'),
     meta: { title: '配套练习', description: '英语配套练习：时态、词形、介词、音标、句法五个专项，选择/填空/排序题型，自动判分并收入错题本。' },
   },

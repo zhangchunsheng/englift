@@ -65,3 +65,9 @@ location ~ ^/api/.*\.php$ {
 
 `api/dict.php` 转发 `api.dictionaryapi.dev`，解决浏览器 CORS 限制；带 24 小时文件缓存
 （存于系统临时目录），输入仅允许字母/连字符/撇号。
+
+### iframe 嵌入页
+
+`/embed/word` 是供第三方网站 iframe 嵌入的随机单词卡片（无导航、无页脚）。
+**服务器不要对它发送 `X-Frame-Options: DENY/SAMEORIGIN` 响应头**，否则其他站点无法嵌入。
+嵌入说明见 `/embed-guide` 页面。

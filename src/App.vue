@@ -19,7 +19,9 @@ const open = ref(false)
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
+  <!-- 嵌入页（iframe 用）：无导航无页脚的纯净布局 -->
+  <RouterView v-if="route.meta.plain" />
+  <div v-else class="min-h-screen flex flex-col">
     <header class="sticky top-0 z-20 border-b border-ink/10 bg-paper/90 backdrop-blur">
       <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
         <RouterLink to="/" class="flex items-baseline gap-2">

@@ -8,7 +8,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const SITE = 'https://englift.luomor.com'
-const routes = ['/', '/tenses', '/verbs', '/prepositions', '/phonemes', '/sentences', '/words', '/dict', '/quiz', '/mistakes']
+const routes = ['/', '/tenses', '/verbs', '/prepositions', '/phonemes', '/sentences', '/words', '/dict', '/embed-guide', '/quiz', '/mistakes']
 
 console.log('▶ 1/3 构建客户端包…')
 await build({ logLevel: 'warn' })
